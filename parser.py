@@ -1,6 +1,6 @@
 import statistics as stats
 
-with open('exp_stg1_raw.txt') as file:
+with open('results/exp_stg1_raw.txt') as file:
     data = file.read().split('\n')
 
 data = [(e.split(':')[0], float(e.split(':')[1][1:])) for e in data]

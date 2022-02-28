@@ -1,13 +1,18 @@
 import math
 import itertools as it
 import random
-from termcolor import colored, cprint
+from termcolor import cprint
 
-with open('words.txt') as file:
+with open('data/words.txt') as file:
     WORDS = file.read().split(',')
 
-with open('possible_words.txt') as file:
+with open('data/possible_words.txt') as file:
     P_WORDS = file.read().split('\n')
+
+with open('data/words_freqs.txt') as file:
+    FREQS = file.read().split('\n')
+
+FREQ_DICT = dict()
 
 GREY = 0
 TAN = 1
@@ -40,19 +45,30 @@ def info(prob):
     return math.log2(1/prob) if prob > 0 else 0
 
 
-def exp(word, data):
+def exp(word, data, size=WORDS_SIZE):
     exp_val = 0
     for val in vals:
         match = find_words(val, word, data)
-        prob = len(match) / WORDS_SIZE
+        prob = len(match) / size
         exp_val += info(prob) * prob
 
     # print(f'{word}:\t{exp_val}')
     return exp_val
 
 
-def find_st_word(data):
-    best_words = [(word, exp(word, data)) for word in data]
+def sigmoid(x):
+    return 1 / (1 + math.exp(-x))
+
+
+def freq():
+    for word in FREQS:
+        x = word.split(' ')
+        FREQ_DICT[x[0]] = sigmoid(float(x[1]))
+
+
+def find_best_word(data):
+    best_words = [(word, exp(word, data, len(data)) + FREQ_DICT[word])
+                  for word in data]
     return list(sorted(best_words, key=lambda x: x[1], reverse=True))
 
 
@@ -72,15 +88,16 @@ def play(resp, guess, data):
 
     print(f'\nInformation:\t{info(len(match)/WORDS_SIZE)}')
     print(f'Entropy:\t{exp(guess, data)}')
-    print(f'Uncertainty:\t{math.log2(len(match))}')
-    print(len(match), end=': ')
+    print(f'Uncertainty:\t{math.log2(len(match)) if len(match) > 0 else 0}')
+    print(len(match))
 
-    nexts = 5 if len(match) > 5 else len(match)-1
+    best_words = find_best_word(match)
+
+    nexts = 5 if len(best_words) > 5 else len(best_words)
     for i in range(nexts):
-        print(match[i], end=', ')
-    print(match[nexts])
+        print(f'{best_words[i][0]}:\t{best_words[i][1]}')
 
-    return match
+    return match, best_words[0][0]
 
 
 def eval(key, guess):
@@ -99,28 +116,62 @@ def eval(key, guess):
 def build_puzzle(data):
     KEY = P_WORDS[random.randrange(0, P_WORDS_SIZE)]
     poss, guess = WORDS, ""
+    print("KEY:", KEY.upper())
     while guess != KEY:
         guess = input('\nWord Guess: ')
         resp = eval(KEY, guess)
-        poss = play(resp, guess, poss)
+        poss, _ = play(resp, guess, poss)
     print_colored(eval(KEY, guess), guess)
 
     return len(GUESSES)
 
 
-def main():
-    # for word in find_st_word(WORDS):
-    #     print(f'{word[0]}:\t{word[1]}')
-    # find_st_word(WORDS)
-    # word = 'tares'
-    # print(word + ":\t", exp(word, WORDS))
-    while True:
+def run(data, iter):
+    freq()
+    attempts = []
+    for i in range(iter):
         RESPS.clear()
         GUESSES.clear()
-        guesses = build_puzzle(WORDS)
+        KEY = P_WORDS[random.randrange(0, P_WORDS_SIZE)]
+        poss, guess = WORDS, "tares"
+        while guess != KEY:
+            resp = eval(KEY, guess)
+            poss, guess = play(resp, guess, poss)
+        print_colored(eval(KEY, guess), guess)
+
         print('\n------------------------------')
-        print(f'--------- {guesses} ATTEMPTS ---------')
+        print(f'--------- {len(GUESSES)+1} ATTEMPTS ---------')
         print('------------------------------')
+
+        attempts.append((KEY, len(GUESSES)+1))
+
+    return attempts
+
+
+def main():
+    # for word in find_best_word(WORDS):
+    #     print(f'{word[0]}:\t{word[1]}')
+    # find_best_word(WORDS)
+    # word = 'tares'
+    # print(word + ":\t", exp(word, WORDS))
+    # while True:
+    #     RESPS.clear()
+    #     GUESSES.clear()
+    #     guesses = build_puzzle(WORDS)
+    #     print('\n------------------------------')
+    #     print(f'--------- {guesses} ATTEMPTS ---------')
+    #     print('------------------------------')
+
+    freq()
+    print(dict(sorted(FREQ_DICT.items(), key=lambda x: x[1])))
+
+    # stats = run(WORDS, 200)
+    # avg = sum([x[1] for x in stats])/len(stats)
+    # print(f'Average: {avg}')
+
+    # stats = list(sorted(stats, key=lambda x: x[1], reverse=True))
+    # for x in stats:
+    #     print(f'{x[0]}: {x[1]}')
 
 
 if __name__ == '__main__':
