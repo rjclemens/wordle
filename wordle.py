@@ -97,8 +97,6 @@ def eval(key, guess):
 
 
 def build_puzzle(data):
-    RESPS = []
-    GUESSES = []
     KEY = P_WORDS[random.randrange(0, P_WORDS_SIZE)]
     poss, guess = WORDS, ""
     while guess != KEY:
@@ -106,6 +104,8 @@ def build_puzzle(data):
         resp = eval(KEY, guess)
         poss = play(resp, guess, poss)
     print_colored(eval(KEY, guess), guess)
+
+    return len(GUESSES)
 
 
 def main():
@@ -115,8 +115,12 @@ def main():
     # word = 'tares'
     # print(word + ":\t", exp(word, WORDS))
     while True:
-        build_puzzle(WORDS)
-        print('\n---------------------')
+        RESPS.clear()
+        GUESSES.clear()
+        guesses = build_puzzle(WORDS)
+        print('\n------------------------------')
+        print(f'--------- {guesses} ATTEMPTS ---------')
+        print('------------------------------')
 
 
 if __name__ == '__main__':
