@@ -2,15 +2,16 @@ import math
 import itertools as it
 import random
 from termcolor import cprint
+import json
 
 with open('data/words.txt') as file:
-    WORDS = file.read().split(',')
+    WORDS = file.read().split('\n')
 
 with open('data/possible_words.txt') as file:
     P_WORDS = file.read().split('\n')
 
 with open('data/words_freqs.txt') as file:
-    FREQS = file.read().split('\n')
+    FREQS = file.read().split(',')
 
 FREQ_DICT = dict()
 
@@ -57,19 +58,25 @@ def exp(word, data, size=WORDS_SIZE):
 
 
 def sigmoid(x):
-    return 1 / (1 + math.exp(-x))
+    try:
+        # centered based on index
+        return 1 / (1 + math.exp(-(-x+2500)/500))
+    except:
+        return 0
 
 
-def freq():
-    for word in FREQS:
-        x = word.split(' ')
-        FREQ_DICT[x[0]] = sigmoid(float(x[1]))
+def freq(FREQS):
+    # parse json-formatted word freq text file
+    FREQS = [(x.split(':')[0][2:7], float(x.split(':')[1][1:])) for x in FREQS]
+    FREQS = list(sorted(FREQS, key=lambda x: x[1], reverse=True))
+    for i, elem in enumerate(FREQS):
+        FREQ_DICT[elem[0]] = sigmoid(i)
 
 
-def find_best_word(data):
-    best_words = [(word, exp(word, data, len(data)) + FREQ_DICT[word])
+def find_best_word(data, guesses):
+    best_words = [(word, exp(word, data, len(data)), FREQ_DICT.get(word))
                   for word in data]
-    return list(sorted(best_words, key=lambda x: x[1], reverse=True))
+    return list(sorted(best_words, key=lambda x: x[1]+(guesses/2)*x[2], reverse=True))
 
 
 def print_colored(resp, guess):
@@ -80,9 +87,10 @@ def print_colored(resp, guess):
 def play(resp, guess, data):
     GUESSES.append(guess)
     RESPS.append(resp)
+    guess_count = len(GUESSES)
     match = find_words(resp, guess, data)
 
-    for i in range(len(GUESSES)):
+    for i in range(guess_count):
         print_colored(RESPS[i], GUESSES[i])
         print()
 
@@ -91,11 +99,11 @@ def play(resp, guess, data):
     print(f'Uncertainty:\t{math.log2(len(match)) if len(match) > 0 else 0}')
     print(len(match))
 
-    best_words = find_best_word(match)
+    best_words = find_best_word(match, guess_count)
 
     nexts = 5 if len(best_words) > 5 else len(best_words)
     for i in range(nexts):
-        print(f'{best_words[i][0]}:\t{best_words[i][1]}')
+        print(f'{best_words[i][0]}:\t{best_words[i][1]}\t{best_words[i][2]}')
 
     return match, best_words[0][0]
 
@@ -126,8 +134,8 @@ def build_puzzle(data):
     return len(GUESSES)
 
 
-def run(data, iter):
-    freq()
+def run(iter):
+    freq(FREQS)
     attempts = []
     for i in range(iter):
         RESPS.clear()
@@ -162,16 +170,16 @@ def main():
     #     print(f'--------- {guesses} ATTEMPTS ---------')
     #     print('------------------------------')
 
-    freq()
-    print(dict(sorted(FREQ_DICT.items(), key=lambda x: x[1])))
+    # freq(FREQS)
+    # print(dict(sorted(FREQ_DICT.items(), key=lambda x: x[1])))
 
-    # stats = run(WORDS, 200)
-    # avg = sum([x[1] for x in stats])/len(stats)
-    # print(f'Average: {avg}')
+    stats = run(200)
+    avg = sum([x[1] for x in stats])/len(stats)
+    print(f'Average: {avg}')
 
-    # stats = list(sorted(stats, key=lambda x: x[1], reverse=True))
-    # for x in stats:
-    #     print(f'{x[0]}: {x[1]}')
+    stats = list(sorted(stats, key=lambda x: x[1], reverse=True))
+    for x in stats:
+        print(f'{x[0]}: {x[1]}')
 
 
 if __name__ == '__main__':
